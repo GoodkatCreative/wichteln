@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wichteln</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 48px;
+    font: 28px/1.4 system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    background: #fffdf7; color: #111;
+  }
+  main { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 40px; margin: 0 0 24px; }
+  label { display: block; margin-bottom: 12px; }
+  textarea {
+    width: 100%; min-height: 260px; padding: 16px;
+    font: inherit; border: 3px solid #111; border-radius: 12px;
+  }
+  button {
+    display: block; width: 100%; min-height: 72px; margin: 20px 0 0; padding: 16px;
+    font: inherit; font-weight: 700; color: #fff; background: #a3121e;
+    border: 0; border-radius: 14px; cursor: pointer;
+  }
+  button:focus-visible { outline: 4px solid #111; outline-offset: 4px; }
+  .error { color: #a3121e; font-weight: 700; margin: 16px 0 0; }
+  .person { padding: 20px 0; border-bottom: 2px solid #ddd; }
+  .person button { margin-top: 12px; }
+  .big { font-size: 56px; font-weight: 800; text-transform: uppercase; margin: 8px 0 24px; overflow-wrap: anywhere; }
+  .budget { font-size: 36px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <!-- Organisator -->
+  <section id="org" hidden>
+    <h1>Wichteln – Auslosen</h1>
+    <div id="form">
+      <label for="names">Alle Namen, ein Name pro Zeile:</label>
+      <textarea id="names" autocomplete="off"></textarea>
+      <p id="orgError" class="error" role="alert"></p>
+      <button id="drawBtn" type="button">Auslosen</button>
+    </div>
+    <div id="links" hidden>
+      <p>Fertig! Schick jeder Person ihren eigenen Link.</p>
+      <div id="list"></div>
+    </div>
+  </section>
+
+  <!-- Empfänger -->
+  <section id="rcv" hidden>
+    <h1 id="hello"></h1>
+    <button id="revealBtn" type="button">🎁 Namen zeigen</button>
+    <div id="result" hidden>
+      <p>Du beschenkst:</p>
+      <p id="receiver" class="big"></p>
+      <p class="budget"><strong>Budget: 50 Euro</strong></p>
+      <p>Diesen Link einfach wieder öffnen, um nachzusehen.</p>
+    </div>
+  </section>
+
+  <section id="broken" hidden>
+    <h1>Hoppla</h1>
+    <p>Dieser Link funktioniert leider nicht. Bitte frag nach einem neuen Link.</p>
+  </section>
+</main>
+<script src="wichtel.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+  // Link in denselben Tab eingefügt: nur der Anker ändert sich, Seite lädt sonst nicht neu.
+  addEventListener('hashchange', () => location.reload());
+
+  if (!location.hash || location.hash === '#') {
+    $('org').hidden = false;
+    $('drawBtn').addEventListener('click', () => {
+      const parsed = parseNames($('names').value);
+      if (parsed.error) { $('orgError').textContent = parsed.error; return; }
+      const base = location.origin + location.pathname;
+      for (const { giver, receiver } of draw(parsed.names)) {
+        const url = base + encodeHash(giver, receiver);
+        const row = document.createElement('div');
+        row.className = 'person';
+        const p = document.createElement('p');
+        p.style.margin = '0';
+        p.textContent = 'Link für ' + giver;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = 'Link kopieren';
+        btn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(url);
+            btn.textContent = '✓ Kopiert';
+            setTimeout(() => { btn.textContent = 'Link kopieren'; }, 2000);
+          } catch {
+            prompt('Link für ' + giver + ' – bitte kopieren:', url);
+          }
+        });
+        row.append(p, btn);
+        $('list').append(row);
+      }
+      $('form').hidden = true;
+      $('links').hidden = false;
+    });
+  } else {
+    const data = decodeHash(location.hash);
+    if (!data) {
+      $('broken').hidden = false;
+    } else {
+      $('rcv').hidden = false;
+      $('hello').textContent = 'Hallo ' + data.giver + '!';
+      $('revealBtn').addEventListener('click', () => {
+        $('receiver').textContent = data.receiver;
+        $('revealBtn').hidden = true;
+        $('result').hidden = false;
+      });
+    }
+  }
+</script>
+</body>
+</html>
