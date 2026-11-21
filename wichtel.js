@@ -13,7 +13,8 @@ function draw(names, rand = Math.random) {
     const j = Math.floor(rand() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
-  return a.map((giver, i) => ({ giver, receiver: a[(i + 1) % a.length] }));
+  // Ergebnis in Eingabe-Reihenfolge: die Kreis-Reihenfolge würde die ganze Auslosung verraten.
+  return names.map(giver => ({ giver, receiver: a[(a.indexOf(giver) + 1) % a.length] }));
 }
 
 function encodeHash(giver, receiver) {
@@ -24,7 +25,8 @@ function encodeHash(giver, receiver) {
 
 function decodeHash(hash) {
   try {
-    const b64 = hash.replace(/^#/, '').replace(/-/g, '+').replace(/_/g, '/');
+    // Messenger hängen gern ".", ")" o. Ä. an – alles ab dem ersten Fremdzeichen abschneiden.
+    const b64 = hash.replace(/^#/, '').replace(/[^A-Za-z0-9_-][\s\S]*$/, '').replace(/-/g, '+').replace(/_/g, '/');
     const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
     const o = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
     if (typeof o.g !== 'string' || typeof o.r !== 'string' || !o.g || !o.r) return null;

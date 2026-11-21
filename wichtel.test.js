@@ -21,6 +21,15 @@ test('draw: jeder gibt und bekommt genau einmal, nie sich selbst', () => {
     for (const p of pairs) assert.notEqual(p.giver, p.receiver);
   }
 });
+test('draw liefert Paare in Eingabe-Reihenfolge (Liste verrät nichts)', () => {
+  const names = ['A', 'B', 'C', 'D', 'E'];
+  for (let i = 0; i < 50; i++) assert.deepEqual(draw(names).map(p => p.giver), names);
+});
+test('decodeHash verträgt angehängte Zeichen vom Messenger', () => {
+  const h = encodeHash('Erna', 'Klaus');
+  assert.deepEqual(decodeHash(h + '.'), { giver: 'Erna', receiver: 'Klaus' });
+  assert.deepEqual(decodeHash(h + ')'), { giver: 'Erna', receiver: 'Klaus' });
+});
 test('encode/decode erhält Umlaute, Bindestrich und Emoji', () => {
   const h = encodeHash('Anne-Marie', 'Jürgen 🎅');
   assert.match(h, /^#[A-Za-z0-9_-]+$/);

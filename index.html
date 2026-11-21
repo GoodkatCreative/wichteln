@@ -24,6 +24,7 @@
     border: 0; border-radius: 14px; cursor: pointer;
   }
   button:focus-visible { outline: 4px solid #111; outline-offset: 4px; }
+  button.secondary { margin-top: 48px; color: #111; background: #fff; border: 3px solid #111; }
   .error { color: #a3121e; font-weight: 700; margin: 16px 0 0; }
   .person { padding: 20px 0; border-bottom: 2px solid #ddd; }
   .person button { margin-top: 12px; }
@@ -46,6 +47,7 @@
     <div id="links" hidden>
       <p>Fertig! Schick jeder Person ihren eigenen Link.</p>
       <div id="list"></div>
+      <button id="resetBtn" type="button" class="secondary">Neu auslosen</button>
     </div>
   </section>
 
@@ -74,34 +76,54 @@
 
   if (!location.hash || location.hash === '#') {
     $('org').hidden = false;
-    $('drawBtn').addEventListener('click', () => {
-      const parsed = parseNames($('names').value);
-      if (parsed.error) { $('orgError').textContent = parsed.error; return; }
-      const base = location.origin + location.pathname;
-      for (const { giver, receiver } of draw(parsed.names)) {
-        const url = base + encodeHash(giver, receiver);
+    // Auslosung merken: neu laden oder Tab-Wechsel darf nicht zu einer zweiten Auslosung führen.
+    const KEY = 'wichteln';
+    const save = links => { try { localStorage.setItem(KEY, JSON.stringify(links)); } catch (e) {} };
+    const markCopied = (btn, link, links) => {
+      link.copied = true; save(links);
+      btn.textContent = '✓ Kopiert'; btn.style.background = '#2f6b2f';
+    };
+    const showLinks = links => {
+      for (const link of links) {
         const row = document.createElement('div');
         row.className = 'person';
         const p = document.createElement('p');
         p.style.margin = '0';
-        p.textContent = 'Link für ' + giver;
+        p.textContent = 'Link für ' + link.giver;
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.textContent = 'Link kopieren';
+        if (link.copied) markCopied(btn, link, links);
         btn.addEventListener('click', async () => {
           try {
-            await navigator.clipboard.writeText(url);
-            btn.textContent = '✓ Kopiert';
-            setTimeout(() => { btn.textContent = 'Link kopieren'; }, 2000);
-          } catch {
-            prompt('Link für ' + giver + ' – bitte kopieren:', url);
+            await navigator.clipboard.writeText(link.url);
+          } catch (e) {
+            prompt('Link für ' + link.giver + ' – bitte kopieren:', link.url);
           }
+          markCopied(btn, link, links);
         });
         row.append(p, btn);
         $('list').append(row);
       }
       $('form').hidden = true;
       $('links').hidden = false;
+    };
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+    if (Array.isArray(stored) && stored.length) showLinks(stored);
+    $('drawBtn').addEventListener('click', () => {
+      const parsed = parseNames($('names').value);
+      if (parsed.error) { $('orgError').textContent = parsed.error; return; }
+      const base = location.origin + location.pathname;
+      const links = draw(parsed.names).map(({ giver, receiver }) =>
+        ({ giver, url: base + encodeHash(giver, receiver), copied: false }));
+      save(links);
+      showLinks(links);
+    });
+    $('resetBtn').addEventListener('click', () => {
+      if (!confirm('Wirklich neu auslosen? Schon verschickte Links passen dann nicht mehr.')) return;
+      try { localStorage.removeItem(KEY); } catch (e) {}
+      location.reload();
     });
   } else {
     const data = decodeHash(location.hash);
